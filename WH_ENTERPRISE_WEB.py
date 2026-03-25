@@ -123,7 +123,7 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/assets", StaticFiles(directory=str(BASE_DIR / "assets")), name="assets")
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 templates.env.globals["themes"] = list(THEMES.keys())
 templates.env.globals["status_flow"] = STATUS_FLOW
 templates.env.globals["now"] = datetime.utcnow
@@ -376,10 +376,8 @@ def get_user_from_session(request: Request) -> Optional[dict[str, Any]]:
     return None
 
 
-def auth_context(request: Request):
-    return {
-        "user": get_user_from_session(request)
-    }
+def auth_context(request: Request) -> dict[str, Any]:
+    user = get_user_from_session(request)
     theme_name = get_theme_name(request)
     return {
         "user": user,
@@ -552,15 +550,11 @@ def dashboard(request: Request):
 def login_page(request: Request):
     if get_user_from_session(request):
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(
-        "login.html",
-        {
-            "request": request,
-            **auth_context(request),
-            "message": request.query_params.get("msg", ""),
-            "kind": request.query_params.get("kind", "success"),
-        },
-    )
+    context = auth_context(request)
+    context["request"] = request
+    context["message"] = request.query_params.get("msg", "")
+    context["kind"] = request.query_params.get("kind", "success")
+    return templates.TemplateResponse("login.html", context)
 
 
 @app.post("/login")
